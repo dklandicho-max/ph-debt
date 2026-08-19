@@ -4,7 +4,17 @@ on:
   schedule:
     # 00:00 UTC = 08:00 Asia/Kuala_Lumpur
     - cron: "0 0 * * *"
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      date:
+        description: "Override today's date (YYYY-MM-DD), for testing"
+        required: false
+        type: string
+      dry_run:
+        description: "Print the message instead of sending it to Telegram"
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -28,7 +38,13 @@ jobs:
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python debt_reminder.py
+          DATE_OVERRIDE: ${{ inputs.date }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          ARGS=""
+          if [ -n "$DATE_OVERRIDE" ]; then ARGS="$ARGS --date $DATE_OVERRIDE"; fi
+          if [ "$DRY_RUN" = "true" ]; then ARGS="$ARGS --dry-run"; fi
+          python debt_reminder.py $ARGS
 
       - name: Record run (keeps the repo active for scheduled workflows)
         if: always()
