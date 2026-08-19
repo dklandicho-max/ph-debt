@@ -1,0 +1,12 @@
+timezone: Asia/Kuala_Lumpur
+payday_window: [26, 27, 28]
+fx_fallback_php_per_myr: 15.01   # gagamitin kung down ang FX API
+
+debts:
+  - { name: "BPI Credit Card", amount_php: 17808.45, ends: 2028-08 }
+  - { name: "Marvin",          amount_php: 10000.00, ends: 2028-11 }
+  - { name: "GLoan 3",         amount_php:  4465.50, ends: 2027-01 }
+  - { name: "GLoan 4",         amount_php:  1950.17, ends: 2026-10 }
+  - { name: "GLoan 5",         amount_php:  1820.16, ends: 2026-11 }
+  - { name: "GLoan 2",         amount_php:  1755.15, ends: 2026-10 }
+  - { name: "GLoan 1",         amount_php:  1625.14, ends: 2026-10 }

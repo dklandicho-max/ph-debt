@@ -1,0 +1,43 @@
+name: Payday Debt Reminder
+
+on:
+  schedule:
+    # 00:00 UTC = 08:00 Asia/Kuala_Lumpur
+    - cron: "0 0 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run debt reminder
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python debt_reminder.py
+
+      - name: Record run (keeps the repo active for scheduled workflows)
+        if: always()
+        run: |
+          date -u +"%Y-%m-%dT%H:%M:%SZ" >> last_run.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add last_run.txt
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: record run $(date -u +%F)"
+            git push
+          fi
