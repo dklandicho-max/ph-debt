@@ -58,35 +58,64 @@ def test_payday_no_weekday_in_window_raises():
         dr.compute_payday(2026, 9, [5, 6])
 
 
-DEBTS = [
-    {"name": "BPI Credit Card", "amount_php": 17808.45, "ends": "2028-08"},
-    {"name": "Marvin", "amount_php": 10000.00, "ends": "2028-11"},
-    {"name": "GLoan 3", "amount_php": 4465.50, "ends": "2027-01"},
-    {"name": "GLoan 4", "amount_php": 1950.17, "ends": "2026-10"},
-    {"name": "GLoan 5", "amount_php": 1820.16, "ends": "2026-11"},
-    {"name": "GLoan 2", "amount_php": 1755.15, "ends": "2026-10"},
-    {"name": "GLoan 1", "amount_php": 1625.14, "ends": "2026-10"},
-]
+CONFIG = dr.load_config()
+ALL = CONFIG["debts"] + CONFIG["bills"]
 
 
-def test_active_debts_drop_expired_mid_timeline():
-    # As of Nov 2026, the three debts ending Oct 2026 have dropped out.
-    today = date(2026, 11, 26)
-    active = dr.get_active_debts(DEBTS, today)
-    active_names = {d["name"] for d in active}
-    assert active_names == {"BPI Credit Card", "Marvin", "GLoan 3", "GLoan 5"}
+def names(items):
+    return {i["name"] for i in items}
 
 
-def test_active_debts_ends_this_month_is_still_active():
-    # A debt ending in the current month is inclusive of its final payment.
-    today = date(2026, 10, 26)
-    active = dr.get_active_debts(DEBTS, today)
-    assert any(d["name"] == "GLoan 4" for d in active)
+def test_gloan_c_active_through_december_only():
+    debts = CONFIG["debts"]
+    assert "GCash GLoan C" in names(dr.get_active_debts(debts, date(2026, 12, 1)))
+    assert "GCash GLoan C" not in names(dr.get_active_debts(debts, date(2027, 1, 1)))
 
 
-def test_active_debts_all_expired_returns_empty():
-    today = date(2029, 1, 1)
-    assert dr.get_active_debts(DEBTS, today) == []
+def test_due_day_30_clamps_to_end_of_february():
+    bpi = {"name": "BPI", "amount": 1, "currency": "PHP", "due_day": 30, "ends": "2028-08"}
+    assert dr.due_date_in_month(bpi, 2027, 2) == date(2027, 2, 28)
+    assert dr.due_date_in_month(bpi, 2028, 2) == date(2028, 2, 29)
+    assert dr.items_due_on([bpi], date(2027, 2, 28)) == [bpi]
+
+
+def test_quarterly_therapy_months():
+    t = [b for b in CONFIG["bills"] if "therapy" in b["name"]][0]
+    active = [(y, m) for y in (2026, 2027) for m in range(1, 13) if dr.is_active_in_month(t, y, m)]
+    assert active == [(2026, 12), (2027, 3), (2027, 6), (2027, 9), (2027, 12)]
+
+
+def test_alert_three_days_before_gloan_c():
+    msgs = dr.build_messages(CONFIG, date(2026, 11, 8), lambda f: 15.73)
+    assert len(msgs) == 1
+    assert "GCash GLoan C" in msgs[0] and "Nob 11" in msgs[0]
+
+
+def test_alert_on_due_day_and_last_payment_flag():
+    msgs = dr.build_messages(CONFIG, date(2026, 12, 11), lambda f: 15.73)
+    assert "Due NGAYONG ARAW" in msgs[0]
+    assert "GCash GLoan C" in msgs[0] and "HULING BAYAD" in msgs[0]
+
+
+def test_first_of_month_bills_due_today():
+    msgs = dr.build_messages(CONFIG, date(2026, 12, 1), lambda f: 15.73)
+    for n in ("Rent", "MP2 Pag-IBIG", "WOW Presents Plus", "Zoom therapy"):
+        assert n in msgs[0]
+
+
+def test_payday_sends_alert_and_summary():
+    # 2026-11-26 is a Thursday (payday). Nov 29 is 3 days later: Marvin, SMART, CelcomDigi.
+    msgs = dr.build_messages(CONFIG, date(2026, 11, 26), lambda f: 15.73)
+    assert len(msgs) == 2
+    assert "Marvin" in msgs[0] and "Nob 29" in msgs[0]
+    summary = msgs[1]
+    assert "Para sa Dis 2026" in summary
+    assert "GCash GLoan C" in summary and "HULING BAYAD" in summary
+    assert "Zoom therapy" in summary
+
+
+def test_quiet_day_sends_nothing():
+    assert dr.build_messages(CONFIG, date(2026, 11, 20), lambda f: 15.73) == []
 
 
 def test_fetch_fx_rate_uses_fallback_on_request_exception(monkeypatch):
@@ -130,48 +159,8 @@ def test_fetch_fx_rate_uses_live_value_on_success(monkeypatch):
     assert dr.fetch_fx_rate(fallback=15.01) == 15.42
 
 
-def test_format_message_snapshot():
-    today = date(2026, 8, 26)
-    active = dr.get_active_debts(DEBTS, today)
-    total_php = sum(d["amount_php"] for d in active)
-    message = dr.format_message(today, active, total_php, php_per_myr=15.01)
-
-    expected = (
-        "\U0001F4B0 Payday Debt Reminder — 2026-08-26\n"
-        "\n"
-        "Total remaining: ₱39,424.57 (≈ RM 2,626.55)\n"
-        "\n"
-        "Debts (by amount):\n"
-        "1. BPI Credit Card — ₱17,808.45 (ends 2028-08)\n"
-        "2. Marvin — ₱10,000.00 (ends 2028-11)\n"
-        "3. GLoan 3 — ₱4,465.50 (ends 2027-01)\n"
-        "4. GLoan 4 — ₱1,950.17 (ends 2026-10)\n"
-        "5. GLoan 5 — ₱1,820.16 (ends 2026-11)\n"
-        "6. GLoan 2 — ₱1,755.15 (ends 2026-10)\n"
-        "7. GLoan 1 — ₱1,625.14 (ends 2026-10)\n"
-        "\n"
-        "Debt-free in 27 months (by 2028-11)."
-    )
-    assert message == expected
-
-
-def test_format_message_snapshot_after_some_debts_expire():
-    today = date(2026, 11, 26)
-    active = dr.get_active_debts(DEBTS, today)
-    total_php = sum(d["amount_php"] for d in active)
-    message = dr.format_message(today, active, total_php, php_per_myr=15.01)
-
-    expected = (
-        "\U0001F4B0 Payday Debt Reminder — 2026-11-26\n"
-        "\n"
-        "Total remaining: ₱34,094.11 (≈ RM 2,271.43)\n"
-        "\n"
-        "Debts (by amount):\n"
-        "1. BPI Credit Card — ₱17,808.45 (ends 2028-08)\n"
-        "2. Marvin — ₱10,000.00 (ends 2028-11)\n"
-        "3. GLoan 3 — ₱4,465.50 (ends 2027-01)\n"
-        "4. GLoan 5 — ₱1,820.16 (ends 2026-11)\n"
-        "\n"
-        "Debt-free in 24 months (by 2028-11)."
-    )
-    assert message == expected
+def test_payday_summary_after_gloan_c():
+    msg = dr.format_payday_summary(date(2026, 12, 28), CONFIG["debts"], CONFIG["bills"], 15.73)
+    assert "Para sa Ene 2027" in msg
+    assert "GCash GLoan C" not in msg
+    assert "Debt-free sa loob ng 23 buwan (Nob 2028)." in msg
