@@ -1,12 +1,24 @@
 timezone: Asia/Kuala_Lumpur
 payday_window: [26, 27, 28]
-fx_fallback_php_per_myr: 15.01   # gagamitin kung down ang FX API
+fx_fallback_php_per_myr: 15.73   # gagamitin kung down ang FX API (Okt 29, 2026 rate)
+remind_days_before: 3            # ilang araw bago ang due date magpapadala ng paalala
 
+# Mga utang (PH). due_day = petsa ng bayad kada buwan.
+# ends = huling buwan ng bayad (YYYY-MM). Kapag lumampas na, kusang mawawala.
+# Kung walang ika-29/30/31 ang buwan (hal. Pebrero), gagamitin ang huling araw ng buwan.
 debts:
-  - { name: "BPI Credit Card", amount_php: 17808.45, ends: 2028-08 }
-  - { name: "Marvin",          amount_php: 10000.00, ends: 2028-11 }
-  - { name: "GLoan 3",         amount_php:  4465.50, ends: 2027-01 }
-  - { name: "GLoan 4",         amount_php:  1950.17, ends: 2026-10 }
-  - { name: "GLoan 5",         amount_php:  1820.16, ends: 2026-11 }
-  - { name: "GLoan 2",         amount_php:  1755.15, ends: 2026-10 }
-  - { name: "GLoan 1",         amount_php:  1625.14, ends: 2026-10 }
+  - { name: "BPI Credit Card", amount: 17808.50, currency: PHP, due_day: 30, ends: 2028-08 }
+  - { name: "Marvin",          amount: 10150.00, currency: PHP, due_day: 29, ends: 2028-11 }
+  - { name: "GCash GLoan C",   amount:  4465.50, currency: PHP, due_day: 11, ends: 2026-12 }
+
+# Mga regular na bayarin at subscription.
+# Opsyonal: starts (YYYY-MM), ends (YYYY-MM), every_months (hal. 3 = quarterly).
+bills:
+  - { name: "Rent",                         amount: 900.00,  currency: MYR, due_day: 1 }
+  - { name: "MP2 Pag-IBIG",                 amount: 500.00,  currency: PHP, due_day: 1 }
+  - { name: "WOW Presents Plus",            amount: 29.90,   currency: MYR, due_day: 1 }
+  - { name: "Aircon prepaid (OPAL B-20-09)", amount: 50.00,  currency: MYR, due_day: 13 }
+  - { name: "Claude AI Pro",                amount: 79.33,   currency: MYR, due_day: 14 }
+  - { name: "SMART + Google Storage",       amount: 718.00,  currency: PHP, due_day: 29 }
+  - { name: "CelcomDigi prepaid",           amount: 50.00,   currency: MYR, due_day: 29 }
+  - { name: "Zoom therapy — Dra. Sha",      amount: 3000.00, currency: PHP, due_day: 1, starts: 2026-12, every_months: 3 }
