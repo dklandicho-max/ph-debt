@@ -46,6 +46,8 @@ def fmt_day(d: date) -> str:
 
 
 def fmt_amount(item: dict) -> str:
+    if item.get("amount") is None:
+        return "tingnan ang halaga sa app"
     sign = "₱" if item["currency"] == "PHP" else "RM "
     return f"{sign}{item['amount']:,.2f}"
 
@@ -98,6 +100,8 @@ def items_due_on(items: list[dict], target: date) -> list[dict]:
 
 def describe(item: dict, on: date) -> str:
     line = f"• {item['name']} — {fmt_amount(item)}"
+    if item.get("note"):
+        line += f"\n   ↳ {item['note']}"
     if "ends" in item and parse_ym(item["ends"]) == (on.year, on.month):
         line += " (HULING BAYAD 🎉)"
     return line
@@ -129,6 +133,8 @@ def fetch_fx_rate(fallback: float, timeout: int = FX_TIMEOUT) -> float:
 
 
 def to_myr(item: dict, php_per_myr: float) -> float:
+    if item.get("amount") is None:
+        return 0.0  # variable bills (hal. PayLater) — nasa budget na ang gastos
     return item["amount"] / php_per_myr if item["currency"] == "PHP" else item["amount"]
 
 
