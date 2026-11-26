@@ -164,3 +164,16 @@ def test_payday_summary_after_gloan_c():
     assert "Para sa Ene 2027" in msg
     assert "GCash GLoan C" not in msg
     assert "Debt-free sa loob ng 23 buwan (Nob 2028)." in msg
+
+
+def test_grab_paylater_alert_on_4th_and_7th():
+    msg4 = dr.build_messages(CONFIG, date(2026, 12, 4), lambda f: 15.48)[0]
+    assert "Grab PayLater" in msg4 and "Dis 7" in msg4 and "Maybank" in msg4
+    msg7 = dr.build_messages(CONFIG, date(2026, 12, 7), lambda f: 15.48)[0]
+    assert "Due NGAYONG ARAW" in msg7 and "Grab PayLater" in msg7
+
+
+def test_variable_amount_not_counted_in_summary_total():
+    item = {"name": "X", "currency": "MYR", "due_day": 7}
+    assert dr.to_myr(item, 15.48) == 0.0
+    assert dr.fmt_amount(item) == "tingnan ang halaga sa app"
